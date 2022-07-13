@@ -35,6 +35,7 @@ app.get("/", async (req, res) => {
   try {
     const response = await todos
       .find({})
+      .sort({ index: 1 })
       .skip(skip)
       .limit(DEFAULT_LIMIT)
       .toArray();
@@ -56,7 +57,25 @@ app.post("/", async (req, res) => {
     return;
   }
 
-  const todo = { id: generateId(), text, completed: false };
+  const maxTodo = database.client
+    .db("todos")
+    .collection("todos")
+    .find()
+    .limit(1)
+    .sort({ index: -1 });
+  let maxIndex = undefined;
+  if (maxTodo[0]) {
+    maxIndex = maxTodo[0].index;
+  } else {
+    maxIndex = 0;
+  }
+
+  const todo = {
+    id: generateId(),
+    text,
+    completed: false,
+    index: maxIndex + 1,
+  };
   await database.client.db("todos").collection("todos").insertOne(todo);
   res.status(201);
   res.json(todo);
@@ -64,26 +83,32 @@ app.post("/", async (req, res) => {
 
 app.put("/:id", async (req, res) => {
   const { id } = req.params;
-  const { completed } = req.body;
+  const { completed, index } = req.body;
 
-  if (typeof completed !== "boolean") {
-    res.status(400);
-    res.json({ message: "invalid 'completed' expected boolean" });
-    return;
+  // if (typeof completed !== "boolean") {
+  //   res.status(400);
+  //   res.json({ message: "invalid 'completed' expected boolean" });
+  //   return;
+  // }
+
+  let patch = {};
+
+  if (typeof completed == "boolean") {
+    patch.completed = { completed: { $eq: [false, "$completed"] } };
+  }
+
+  if (typeof index == "number") {
+    patch.index = index;
   }
 
   // implementing data persist after referesh @>>bug fix
   await database.client
     .db("todos")
     .collection("todos")
-    .updateOne(
-      { id },
-      [{ $set: { completed: { $eq: [false, "$completed"] } } }],
-      () => {
-        res.status(200);
-        res.end();
-      }
-    );
+    .updateOne({ id }, [{ $set: patch }], () => {
+      res.status(200);
+      res.end();
+    });
 });
 
 app.delete("/:id", async (req, res) => {

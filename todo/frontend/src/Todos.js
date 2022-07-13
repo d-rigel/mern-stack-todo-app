@@ -83,6 +83,26 @@ function Todos() {
   const moveTodos = useCallback((dragIndex, hoverIndex) => {
     const dragItem = todos[dragIndex];
     const hoverItem = todos[hoverIndex];
+    fetch(`http://localhost:3001/${dragItem.id}`, {
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      method: "PUT",
+      body: JSON.stringify({
+        index: hoverIndex,
+      }),
+    });
+    fetch(`http://localhost:3001/${hoverItem.id}`, {
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      method: "PUT",
+      body: JSON.stringify({
+        index: dragIndex,
+      }),
+    });
     // Swap places of dragItem and hoverItem in the todos array
     setTodos((todos) => {
       const updatedTodos = [...todos];
@@ -146,6 +166,7 @@ function Todos() {
             <Box flexGrow={1}>
               <TextField
                 fullWidth
+                placeholder="put your todo"
                 value={newTodoText}
                 onKeyPress={(event) => {
                   if (event.key === "Enter") {
